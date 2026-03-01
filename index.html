@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flashcards Interactivas: Profesiones Estresantes</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #e74c3c;
+            --bg: #f4f7f6;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        #game-container {
+            width: 90%;
+            max-width: 600px;
+            perspective: 1000px;
+        }
+        .card {
+            width: 100%;
+            height: 450px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            border-radius: 20px;
+        }
+        .card.is-flipped {
+            transform: rotateY(180deg);
+        }
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 20px;
+            background: white;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        .card-back {
+            transform: rotateY(180deg);
+            background: #ecf0f1;
+            color: var(--primary);
+        }
+        .card img {
+            width: 100%;
+            max-height: 250px;
+            object-fit: cover;
+            border-radius: 15px;
+            margin-bottom: 15px;
+        }
+        .phrase-en { font-size: 1.5rem; font-weight: bold; color: var(--primary); }
+        .phrase-es { font-size: 1.4rem; color: var(--accent); }
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            gap: 20px;
+        }
+        button {
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 50px;
+            background: var(--primary);
+            color: white;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        #registration {
+            display: none;
+            text-align: center;
+        }
+        input {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div class="card" id="flashcard">
+            <div class="card-face card-front" id="front-content">
+                </div>
+            <div class="card-face card-back" id="back-content">
+                </div>
+        </div>
+
+        <div class="controls">
+            <button id="next-btn" disabled onclick="nextCard()">Siguiente ➔</button>
+        </div>
+    </div>
+
+    <div id="registration">
+        <h1>GAME OVER</h1>
+        <p>¡Excelente trabajo! Ingresa tu nombre para el registro:</p>
+        <input type="text" id="username" placeholder="Tu nombre aquí...">
+        <button onclick="saveUser()">Guardar Registro</button>
+        <h3>Lista de Participantes:</h3>
+        <ul id="user-list"></ul>
+    </div>
+
+    <script>
+        const cards = [
+            { en: "5 MOST STRESSFUL PROFESSIONS", es: "5 profesiones más estresantes", img: "https://images.unsplash.com/photo-1521791136064-7986c2959d99?auto=format&fit=crop&w=600&q=80" },
+            { en: "SYNONYMOUS AND UNPREVENTABLE", es: "Sinónimo e inevitable", img: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=600&q=80" },
+            { en: "YOUR WORK SITUATIONS MAY NOT BE AS BAD AS SOME STRESSFUL JOBS", es: "Tus situaciones laborales pueden no ser tan malas como algunos trabajos estresantes", img: "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=600&q=80" },
+            { en: "TO GET A MOMENT´S REST OR BREAK", es: "Para tener un momento de descanso o un respiro", img: "https://images.unsplash.com/photo-1512438248247-f0f2a5a8b7f0?auto=format&fit=crop&w=600&q=80" },
+            { en: "WHAT CAREERS ARE THESE?", es: "¿Qué carreras son estas?", img: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80" },
+            { en: "FIREFIGHTERS HAVE ONE OF THE MOST DANGEROUS WORKS", es: "Los bomberos tienen uno de los trabajos más peligrosos", img: "https://images.unsplash.com/photo-1516054817111-39655848784d?auto=format&fit=crop&w=600&q=80" },
+            { en: "THEY FACE LIFE-THREATENING SITUATIONS", es: "Ellos enfrentan situaciones que amenazan la vida", img: "https://images.unsplash.com/photo-1541888941255-202181514757?auto=format&fit=crop&w=600&q=80" },
+            { en: "IN EVER CHANGING CONDITIONS", es: "En condiciones que cambian constantemente", img: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80" },
+            { en: "ENTERING BURNING BUILDINGS", es: "Entrando en edificios en llamas", img: "https://images.unsplash.com/photo-1580584126748-e278c1df2d01?auto=format&fit=crop&w=600&q=80" },
+            { en: "TO RESCUE INDIVIDUALS", es: "Para rescatar individuos", img: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=600&q=80" },
+            { en: "FLYING A PLANE IS HARDER THAN IT LOOKS", es: "Volar un avión es más difícil de lo que parece", img: "https://images.unsplash.com/photo-1464037862896-6a752e14a278?auto=format&fit=crop&w=600&q=80" },
+            { en: "NOT EVERYONE IS TRUSTWORTHY ENOUGH", es: "No todo el mundo es lo suficientemente confiable", img: "https://images.unsplash.com/photo-1521791055366-0d5fa3623a7c?auto=format&fit=crop&w=600&q=80" },
+            { en: "TO SIT IN THE CAPTAIN'S CHAIR", es: "Para sentarse en la silla del capitán", img: "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=600&q=80" },
+            { en: "SAFETY AND SECURITY OF THOUSANDS OF PASSENGERS", es: "Seguridad y protección de miles de pasajeros", img: "https://images.unsplash.com/photo-1517404212354-94191347644f?auto=format&fit=crop&w=600&q=80" },
+            { en: "CREW PLACE THEIR LIVES IN THE HAND OF EACH PILOT", es: "La tripulación pone sus vidas en la mano de cada piloto", img: "https://images.unsplash.com/photo-1506012787146-f92b2d7d6d96?auto=format&fit=crop&w=600&q=80" },
+            { en: "WE PLACE OUR TRUST AND LIVES IN THE HANDS OF EACH COP", es: "Ponemos nuestra confianza y vidas en las manos de cada policía", img: "https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?auto=format&fit=crop&w=600&q=80" },
+            { en: "SINCE PERFECTION IS ELUSIVE", es: "Ya que la perfección es esquiva", img: "https://images.unsplash.com/photo-1499244015905-ee748100595d?auto=format&fit=crop&w=600&q=80" },
+            { en: "EVENT COORDINATORS REQUIRE THE BEST MITIGATION SKILLS", es: "Los coordinadores de eventos requieren las mejores habilidades de mitigación", img: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=600&q=80" },
+            { en: "TO CALM FRAZZLED NERVES BEFORE THEY TURN INTO DISASTER SITUATIONS", es: "Para calmar los nervios alterados antes de que se conviertan en situaciones de desastre", img: "https://images.unsplash.com/photo-1473186578172-c141e6798ee4?auto=format&fit=crop&w=600&q=80" },
+            { en: "SEVERAL THOUSANDS CONFERENCE GOERS", es: "Varios miles de asistentes a la conferencia", img: "https://images.unsplash.com/photo-1540575861501-7ad0582373f2?auto=format&fit=crop&w=600&q=80" },
+            { en: "INSPIRING EVENTS THAT HAVE NEVER BEEN DONE BEFORE", es: "Eventos inspiradores que nunca se han hecho antes", img: "https://images.unsplash.com/photo-1531058020387-3be344556be6?auto=format&fit=crop&w=600&q=80" },
+            { en: "CRAWLING IN THE TRENCHES WITH SOLDIERS", es: "Gateando en las trincheras con soldados", img: "https://images.unsplash.com/photo-1544410642-1559b58a4546?auto=format&fit=crop&w=600&q=80" },
+            { en: "HIDING SEVERAL FEET AWAY FROM A MOTHER LION AND HER CUBS", es: "Escondiéndose a varios pies de distancia de una madre leona y sus cachorros", img: "https://images.unsplash.com/photo-1546182990-dffeafbe841d?auto=format&fit=crop&w=600&q=80" },
+            { en: "NAVIGATING A PRESIDENTIAL PRESS CONFERENCE", es: "Navegando en una conferencia de prensa presidencial", img: "https://images.unsplash.com/photo-1512138411829-281f7c1f102a?auto=format&fit=crop&w=600&q=80" },
+            { en: "PHOTOJOURNALISTS TAKE DANGER TO NEW HEIGHTS", es: "Los fotoperiodistas llevan el peligro a nuevas alturas", img: "https://images.unsplash.com/photo-1452423668729-43a98052d3ee?auto=format&fit=crop&w=600&q=80" },
+            { en: "THEY RISK THEIR LIVES TO RECORD HISTORY", es: "Ellos arriesgan sus vidas para registrar la historia", img: "https://images.unsplash.com/photo-1492691523567-6170f0275df1?auto=format&fit=crop&w=600&q=80" },
+            { en: "TO EDUCATE PEOPLE ON WHAT'S GOING ON", es: "Para educar a la gente sobre lo que está pasando", img: "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=600&q=80" }
+        ];
+
+        let currentIndex = 0;
+        let isFlipped = false;
+        const cardEl = document.getElementById('flashcard');
+        const nextBtn = document.getElementById('next-btn');
+
+        function speak(text, lang) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = lang;
+            utterance.rate = 0.9;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function updateCard() {
+            const data = cards[currentIndex];
+            document.getElementById('front-content').innerHTML = `
+                <img src="${data.img}" alt="Visual">
+                <div class="phrase-en">${data.en}</div>
+            `;
+            document.getElementById('back-content').innerHTML = `
+                <div class="phrase-es">${data.es}</div>
+            `;
+            isFlipped = false;
+            cardEl.classList.remove('is-flipped');
+            nextBtn.disabled = true;
+            speak(data.en, 'en-US');
+        }
+
+        cardEl.addEventListener('click', () => {
+            isFlipped = !isFlipped;
+            cardEl.classList.toggle('is-flipped');
+            const data = cards[currentIndex];
+            
+            if (isFlipped) {
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                speak(data.es, 'es-MX');
+                nextBtn.disabled = false;
+            } else {
+                speak(data.en, 'en-US');
+            }
+        });
+
+        function nextCard() {
+            if (currentIndex < cards.length - 1) {
+                currentIndex++;
+                updateCard();
+            } else {
+                document.getElementById('game-container').style.display = 'none';
+                document.getElementById('registration').style.display = 'block';
+                loadUsers();
+            }
+        }
+
+        function saveUser() {
+            const name = document.getElementById('username').value;
+            if(!name) return alert("Por favor ingresa tu nombre");
+            let users = JSON.parse(localStorage.getItem('participants') || "[]");
+            users.push(name);
+            localStorage.setItem('participants', JSON.stringify(users));
+            loadUsers();
+            document.getElementById('username').value = "";
+        }
+
+        function loadUsers() {
+            const list = document.getElementById('user-list');
+            let users = JSON.parse(localStorage.getItem('participants') || "[]");
+            list.innerHTML = users.map(u => `<li>${u}</li>`).join('');
+        }
+
+        // Inicio
+        updateCard();
+    </script>
+</body>
+</html>
